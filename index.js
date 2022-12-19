@@ -10,6 +10,8 @@ const menuOptions = [
     'Add a role',
     'Add an employee',
     'Update an employee role',
+    'Update an employee manager',
+    'Delete a department',
     'Exit'
 ];
 
@@ -24,7 +26,7 @@ function displayDepartments() {
 function displayRoles() {
     db.promise().query(`SELECT roles.id, roles.title, roles.salary, departments.department
                         FROM roles 
-                        JOIN departments ON roles.department_id = departments.id`)
+                        LEFT JOIN departments ON roles.department_id = departments.id`)
         .then(results => {
             console.table(results[0]);
             mainMenuPrompt();
@@ -36,8 +38,8 @@ function displayEmployees() {
                         roles.salary, departments.department, 
                         CONCAT(m.first_name, ' ', m.last_name) AS manager
                         FROM employees e
-                        JOIN roles ON e.role_id = roles.id
-                        JOIN departments ON roles.department_id = departments.id
+                        LEFT JOIN roles ON e.role_id = roles.id
+                        LEFT JOIN departments ON roles.department_id = departments.id
                         LEFT JOIN employees m ON m.id = e.manager_id`)
         .then(results => {
             console.table(results[0]);
@@ -147,6 +149,106 @@ function addEmployee() {
         })
 }
 
+function updateEmployeeRole() {
+    db.promise().query('SELECT * FROM roles')
+        .then(results => {
+            let returnedRoles = results[0];
+            let roleList = returnedRoles.map(el => el.title);
+            db.promise().query(`SELECT * FROM employees`)
+                .then(results => {
+                    let returnedEmployees = results[0];
+                    let employeeList = returnedEmployees.map(el => `${el.first_name} ${el.last_name}`);
+                    inquirer.prompt([
+                        {
+                            type: "list",
+                            message: "Which employee's role would you like to update?",
+                            name: "updatedEmployee",
+                            choices: employeeList,
+                            loop: false
+                        },
+                        {
+                            type: 'list',
+                            message: "What is the new role?",
+                            name: "newRole",
+                            choices: roleList,
+                            loop: false
+                        }
+                    ]).then(results => {
+                        db.promise().query(`UPDATE employees
+                        SET role_id = '${returnedRoles[roleList.indexOf(results.newRole)].id}'
+                        WHERE id = '${returnedEmployees[employeeList.indexOf(results.updatedEmployee)].id}'`)
+                            .then(results => {
+                                console.log('Employee role updated.')
+                                mainMenuPrompt();
+                            })
+                    })
+                })
+        })
+}
+
+function updateEmployeeManager() {
+    db.promise().query(`SELECT * FROM employees`)
+        .then(results => {
+            let returnedEmployees = results[0];
+            let employeeList = returnedEmployees.map(el => `${el.first_name} ${el.last_name}`);
+            inquirer.prompt(
+                {
+                    type: "list",
+                    message: "Which employee's manager would you like to update?",
+                    name: "updatedEmployee",
+                    choices: employeeList,
+                    loop: false
+                }
+            ).then(results => {
+                let updatedEmployee = results.updatedEmployee;
+                let managerList = [...employeeList];
+                managerList.splice(employeeList.indexOf(updatedEmployee), 1);
+                inquirer.prompt(
+                    {
+                        type: "list",
+                        message: "Who will be their new manager?",
+                        name: "newManager",
+                        choices: managerList,
+                        loop: false
+                    }
+                ).then(results => {
+                    db.promise().query(`UPDATE employees
+                    SET manager_id = '${returnedEmployees[employeeList.indexOf(results.newManager)].id}'
+                    WHERE id = '${returnedEmployees[employeeList.indexOf(updatedEmployee)].id}'`)
+                        .then(results => {
+                            console.log('Employee manager updated.')
+                            mainMenuPrompt();
+                        })
+                })
+            })
+
+        })
+}
+
+function deleteDepartment() {
+    db.promise().query(`SELECT * FROM departments`)
+        .then(results => {
+            let returnedDeps = results[0];
+            let departmentList = returnedDeps.map(el => el.department);
+            inquirer.prompt(
+                {
+                    type: "list",
+                    message: "Which deparment would you like to delete?",
+                    name: "deletedDepartment",
+                    choices: departmentList,
+                    loop: false
+                }
+            ).then(results => {
+                db.promise().query(`DELETE FROM departments
+                WHERE id = ${returnedDeps[departmentList.indexOf(results.deletedDepartment)].id}`)
+                    .then(results => {
+                        console.log('Department deleted.');
+                        mainMenuPrompt();
+                    })
+            })
+        })
+}
+
 function mainMenuPrompt() {
     inquirer.prompt(
         {
@@ -178,6 +280,12 @@ function mainMenuPrompt() {
                 break;
             case 'Update an employee role':
                 updateEmployeeRole();
+                break;
+            case 'Update an employee manager':
+                updateEmployeeManager();
+                break;
+            case 'Delete a department':
+                deleteDepartment();
                 break;
             default:
                 db.end();
