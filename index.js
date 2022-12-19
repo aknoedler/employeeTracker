@@ -12,6 +12,8 @@ const menuOptions = [
     'Update an employee role',
     'Update an employee manager',
     'Delete a department',
+    'Delete a role',
+    'Delete an employee',
     'Exit'
 ];
 
@@ -249,6 +251,54 @@ function deleteDepartment() {
         })
 }
 
+function deleteRole() {
+    db.promise().query(`SELECT * FROM roles`)
+        .then(results => {
+            let returnedRoles = results[0];
+            let roleList = returnedRoles.map(el => el.title);
+            inquirer.prompt(
+                {
+                    type: "list",
+                    message: "Which role would you like to delete?",
+                    name: "deletedRole",
+                    choices: roleList,
+                    loop: false
+                }
+            ).then(results => {
+                db.promise().query(`DELETE FROM roles
+                WHERE id = ${returnedRoles[roleList.indexOf(results.deletedRole)].id}`)
+                    .then(results => {
+                        console.log('Role deleted.');
+                        mainMenuPrompt();
+                    })
+            })
+        })
+}
+
+function deleteEmployee() {
+    db.promise().query(`SELECT * FROM employees`)
+        .then(results => {
+            let returnedEmployees = results[0];
+            let employeeList = returnedEmployees.map(el => `${el.first_name} ${el.last_name}`);
+            inquirer.prompt(
+                {
+                    type: "list",
+                    message: "Which employee would you like to delete?",
+                    name: "deletedEmployee",
+                    choices: employeeList,
+                    loop: false
+                }
+            ).then(results => {
+                db.promise().query(`DELETE FROM employees
+                WHERE id = ${returnedEmployees[employeeList.indexOf(results.deletedEmployee)].id}`)
+                    .then(results => {
+                        console.log('Employee deleted.');
+                        mainMenuPrompt();
+                    })
+            })
+        })
+}
+
 function mainMenuPrompt() {
     inquirer.prompt(
         {
@@ -286,6 +336,12 @@ function mainMenuPrompt() {
                 break;
             case 'Delete a department':
                 deleteDepartment();
+                break;
+            case 'Delete a role':
+                deleteRole();
+                break;
+            case 'Delete an employee':
+                deleteEmployee();
                 break;
             default:
                 db.end();
